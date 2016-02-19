@@ -1,11 +1,11 @@
 class robotAI2 extends AIInfo {
     function GetAuthor()        { return "rjhelms"; }
-    function GetName()            { return "robotAI2"; }
-    function GetDescription()    { return "Oh hello"; }
-    function GetVersion()        { return 1; }
-    function GetDate()            { return "2016-02-18"; }
-    function CreateInstance()    { return "robotAI2"; }
-    function GetShortName()        { return "RAI2"; }
+    function GetName()          { return "robotAI2"; }
+    function GetDescription()   { return "Oh hello"; }
+    function GetVersion()       { return 1; }
+    function GetDate()          { return "2016-02-18"; }
+    function CreateInstance()   { return "robotAI2"; }
+    function GetShortName()     { return "RAI2"; }
     function GetAPIVersion()    { return "1.5"; }
     
     function GetSettings()
