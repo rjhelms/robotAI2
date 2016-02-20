@@ -37,7 +37,7 @@ class robotAI2 extends AIInfo {
         AddSetting({name = "vehicle_refresh",
                     description = "Duration (in days) between vehicle list refresh",
                     min_value = 30,
-                    max_value = 1825,
+                    max_value = 2000,
                     easy_value = 365,
                     medium_value = 182,
                     hard_value = 91,
@@ -53,7 +53,26 @@ class robotAI2 extends AIInfo {
                     hard_value = 30,
                     custom_value = 60,
                     flags = AICONFIG_INGAME});
-
+        
+        AddSetting({name = "line_maintenance_time",
+                    description = "Time (in days) between maintaining existing lines",
+                    min_value = 30,
+                    max_value = 2000,
+                    easy_value = 180,
+                    medium_value = 60,
+                    hard_value = 45,
+                    custom_value = 60,
+                    flags = AICONFIG_INGAME});
+        
+        AddSetting({name = "minimum_station_rating",
+                    description = "Minimum station rating considered acceptable",
+                    min_value = 0,
+                    max_value = 100,
+                    easy_value = 30,
+                    medium_value = 45,
+                    hard_value = 55,
+                    custom_value = 45,
+                    flags = AICONFIG_INGAME});
     }
 }
 

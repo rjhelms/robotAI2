@@ -1,10 +1,10 @@
 import("util.superlib", "SuperLib", 39);
 RoadBuilder <- SuperLib.RoadBuilder;
-Road <- SuperLib.Road;
-Helper <- SuperLib.Helper;
-Log <- SuperLib.Log;
-OrderList <- SuperLib.OrderList;
-Money <- SuperLib.Money;
+Road        <- SuperLib.Road;
+Helper      <- SuperLib.Helper;
+Log         <- SuperLib.Log;
+OrderList   <- SuperLib.OrderList;
+Money       <- SuperLib.Money;
 
 require("utilities.nut");
 require("line.nut");
@@ -21,6 +21,7 @@ class robotAI2 extends AIController
     BestVehicle = null;
     BestVehicleDate = null;
     LastRouteExpansion = null;
+    LastLineMaintenanceDate = null;
     
     constructor()
     {
@@ -72,9 +73,12 @@ class robotAI2 extends AIController
         UnservicedTowns.RemoveList(ServicedTowns);
     }
     
+    /* logic for building first line is a bit different from subsequent ones,
+       so it gets it's own function */
     function BuildFirstLine()
     {
-        local line = null;
+        Money.MaxLoan();
+        
         // get the biggest town, and remove it from the list
         UnservicedTowns.Valuate(Utilities.GetRandomizedPopulation, 300);
         local town1 = UnservicedTowns.Begin();
@@ -108,7 +112,20 @@ class robotAI2 extends AIController
         if (town1_result == null || town2_result == null)
         {
             Log.Error("Failed to build station.", Log.LVL_INFO);
-            return line;
+            
+            // cleanup by removing stations and repaying loan
+            if (town1_result != null)
+            {
+                AIRoad.RemoveRoadStation(town1_result);
+            }
+            
+            if (town2_result != null)
+            {
+                AIRoad.RemoveRoadStation(town2_result);
+            }
+            
+            Money.MakeMaximumPayback();
+            return null;
         }
         
         // build a depot in the first town
@@ -116,7 +133,12 @@ class robotAI2 extends AIController
         if (depot == null)
         {
             Log.Error("Failed to build depot.", Log.LVL_INFO);
-            return line;
+            
+            // cleanup by removing stations and repaying loan
+            AIRoad.RemoveRoadStation(town1_result);
+            AIRoad.RemoveRoadStation(town2_result);
+            Money.MakeMaximumPayback();
+            return null;
         }
         
         // build a road between the two towns
@@ -130,7 +152,13 @@ class robotAI2 extends AIController
         if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
         {
             Log.Error("Failed to build road.", Log.LVL_INFO);
-            return line;
+            
+            // cleanup by removing stations and depot, and repaying loan
+            AIRoad.RemoveRoadStation(town1_result);
+            AIRoad.RemoveRoadStation(town2_result);
+            AIRoad.RemoveRoadDepot(depot);
+            Money.MakeMaximumPayback();
+            return null;
         }
         
         local town1_station = AIStation.GetStationID(town1_result);
@@ -144,7 +172,13 @@ class robotAI2 extends AIController
         if (!AIVehicle.IsValidVehicle(vehicle))
         {
             Log.Error("Failed to build vehicle.", Log.LVL_INFO);
-            return line;
+            
+            // cleanup by removing stations and depot, and repaying loan
+            AIRoad.RemoveRoadStation(town1_result);
+            AIRoad.RemoveRoadStation(town2_result);
+            AIRoad.RemoveRoadDepot(depot);
+            Money.MakeMaximumPayback();
+            return null;
         }
         
         AIVehicle.RefitVehicle(vehicle, PAXCargo);
@@ -152,8 +186,12 @@ class robotAI2 extends AIController
         AIVehicle.StartStopVehicle(vehicle);
         
         local group = AIGroup.CreateGroup(AIVehicle.VT_ROAD);
-        AIGroup.SetName(group, AIStation.GetName(town1_station) + " - " + 
-                        AIStation.GetName(town2_station));
+        local town1_name = AIStation.GetName(town1_station);
+        local town2_name = AIStation.GetName(town2_station);
+        
+        if (town1_name.len() > 14) town1_name = town1_name.slice(0,14);
+        if (town2_name.len() > 14) town2_name = town2_name.slice(0,14);
+        AIGroup.SetName(group, town1_name + " - " + town2_name);
         AIGroup.MoveVehicle(group, vehicle);
         
         ServicedTowns.AddItem(town1,0);
@@ -163,7 +201,10 @@ class robotAI2 extends AIController
         ServicedTowns.AddItem(town2,0);
         RebuildUnservicedTownList();
         
-        line = Line(town1_station, town2_station, depot, group);
+        Money.MakeMaximumPayback();
+        
+        local line = Line(town1_station, town2_station, depot, group, 
+                          PAXCargo);
         return line;
     }
     
@@ -217,24 +258,49 @@ class robotAI2 extends AIController
         if (town2_result == null)
         {
             Log.Error("Failed to build station", Log.LVL_INFO);
-            Money.MakeMaximumPayback;
+            Money.MakeMaximumPayback();
             return null;
         }
         
-        // check if there is a depot in the first town, and build one otherwise
+        
         local depot = null;
-        if (!ServicedTownDepots.HasItem(towns[0]))
+        local depot_town = null;
+        
+        /* check if there is a depot in the either town, and build one 
+           if none exists */
+        if (ServicedTownDepots.HasItem(towns[0]))
         {
+            depot = ServicedTownDepots.GetValue(towns[0]);
+            depot_town = towns[0];
+        } else if (ServicedTownDepots.HasItem(towns[1]))
+        {
+            depot = ServicedTownDepots.GetValue(towns[1]);
+            depot_town = towns[1];
+        } else {
+            
+            // try to build a depot in the first town
             depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[0]), 0, 
                                               10);
-        } else {
-        	depot = ServicedTownDepots.GetValue(towns[0]);
+            if (depot != null)
+            {
+                depot_town = towns[0];
+            } else {
+                /* if building depot in the first town failed, build a depot
+                   in the second town */ 
+                depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[1]), 
+                                                  0, 10);
+                depot_town = towns[1];
+            }
         }
         
+        // if we still don't have a depot, route construction fails
         if (depot == null)
         {
             Log.Error("Failed to build depot", Log.LVL_INFO);
-            Money.MakeMaximumPayback;
+            
+            // cleanup - remove constructed station and repay loan
+            AIRoad.RemoveRoadStation(town2_result);
+            Money.MakeMaximumPayback();
             return null;
         }
         
@@ -248,10 +314,17 @@ class robotAI2 extends AIController
         roadBuilder.SetLoanLimit(-1);
         local road_builder_result = roadBuilder.ConnectTiles();
         
+        // road building failed, abort
         if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
         {
             Log.Error("Failed to build road.", Log.LVL_INFO);
+            
+            // cleanup - remove constructed station and repay loan
+            AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
+            
+            // we can keep the depot, though
+            ServicedTownDepots.AddItem(depot_town, depot);
             return null;
         }
         
@@ -275,21 +348,99 @@ class robotAI2 extends AIController
         AIVehicle.StartStopVehicle(vehicle);
         
         local group = AIGroup.CreateGroup(AIVehicle.VT_ROAD);
-        AIGroup.SetName(group, AIStation.GetName(town1_station) + " - " + 
-                        AIStation.GetName(town2_station));
+        
+        local town1_name = AIStation.GetName(town1_station);
+        local town2_name = AIStation.GetName(town2_station);
+        
+        if (town1_name.len() > 14) town1_name = town1_name.slice(0,14);
+        if (town2_name.len() > 14) town2_name = town2_name.slice(0,14);
+        AIGroup.SetName(group, town1_name + " - " + town2_name);
         AIGroup.MoveVehicle(group, vehicle);
         
         ServicedTowns.AddItem(towns[0],0);
         ServicedTowns.AddItem(towns[1],0);
         ServicedTownStations.AddItem(towns[0], town1_station);
         ServicedTownStations.AddItem(towns[1], town2_station);
-        ServicedTownDepots.AddItem(towns[0], depot);
+        ServicedTownDepots.AddItem(depot_town, depot);
         RebuildUnservicedTownList();
         
         Money.MakeMaximumPayback();
         
-        local line = Line(town1_station, town2_station, depot, group);
+        local line = Line(town1_station, town2_station, depot, group, 
+                          PAXCargo);
         return line;
+    }
+    
+    function DoNewLineConstruction()
+    {
+        if (UnservicedTowns.Count() > 0)
+        {
+            Log.Info("Building new line.", Log.LVL_INFO);
+            local new_line = BuildNewLine();
+            if (new_line != null)
+            {
+                LastRouteExpansion = AIDate.GetCurrentDate();
+                Lines.append(new_line);
+                Log.Info("New line construction successful.", 
+                         Log.LVL_INFO);
+                Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
+                Log.Info(ServicedTowns.Count() + " serviced towns.", 
+                         Log.LVL_DEBUG);
+                Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
+                         Log.LVL_DEBUG);
+            } else {
+                Log.Error("Failed to build new line, error: " + 
+                          AIError.GetLastErrorString(), Log.LVL_INFO);
+            }
+        } else {
+            Log.Info("All towns connected!", Log.LVL_INFO);
+            LastRouteExpansion = AIDate.GetCurrentDate();
+            RebuildUnservicedTownList();
+        }
+    }
+    
+    function DoLineMaintenance()
+    {
+        Log.Info("Maintaining lines.", Log.LVL_INFO);
+        for (local i = 0; i<Lines.len(); i+=1)
+        {
+            // Each line is only maintained once every two update intervals
+            if (AIDate.GetCurrentDate() - (Lines[i].LastUpdateDate) > 
+                (GetSetting("line_maintenance_time") * 2))
+            {
+                local line_rating = Lines[i].GetAverageStationRating();
+                local line_name = AIGroup.GetName(Lines[i].Group);
+                Log.Info(line_name + ": station rating " + 
+                         line_rating, Log.LVL_DEBUG);
+                if (line_rating < GetSetting("minimum_station_rating"))
+                {
+                    Log.Info(line_name + ": needs new vehicle.", 
+                             Log.LVL_SUB_DECISIONS);
+                    Money.MaxLoan();
+                    local vehicle = AIVehicle.BuildVehicle(Lines[i].Depot, 
+                                                           BestVehicle);
+                    if (AIVehicle.IsValidVehicle(vehicle))
+                    {
+                        AIVehicle.RefitVehicle(vehicle, PAXCargo);
+                        AIOrder.ShareOrders(vehicle, 
+                                            AIVehicleList_Group(Lines[i].Group)
+                                                .Begin());
+                        AIGroup.MoveVehicle(Lines[i].Group, vehicle);
+                        AIVehicle.StartStopVehicle(vehicle);
+                        Lines[i].LastUpdateDate = AIDate.GetCurrentDate();
+                    } else 
+                    {
+                        Log.Error("Error adding vehicle to line " + i + ": " + 
+                                  AIError.GetLastErrorString(), Log.LVL_INFO);
+                    }
+                    Money.MakeMaximumPayback();
+                }
+            } else {
+                Log.Info(AIGroup.GetName(Lines[i].Group) + ": maintenance unneeded",
+                         Log.LVL_DEBUG);
+            }
+        }
+        LastLineMaintenanceDate = AIDate.GetCurrentDate();
     }
     
     function Start()
@@ -304,13 +455,13 @@ class robotAI2 extends AIController
           
         Log.Info("Initialized!", Log.LVL_INFO);
         
-        Money.MaxLoan();
+        // try to build the first line as soon as AI is awake
         local first_line = BuildFirstLine();
-        Money.MakeMaximumPayback();
         if (first_line != null)
         {
             first_line_built = true;
             LastRouteExpansion = AIDate.GetCurrentDate();
+            LastLineMaintenanceDate = AIDate.GetCurrentDate();
             Lines.append(first_line);
             Log.Info("Initial line construction successful.", Log.LVL_INFO);
             Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
@@ -327,15 +478,16 @@ class robotAI2 extends AIController
             this.Sleep(50);
             if (!first_line_built)
             {
+                // keep trying to build first line until we get it
                 Log.Info("Reattempting construction of inital line.", 
                          Log.LVL_INFO);
-                Money.MaxLoan();
+                         
                 first_line = BuildFirstLine();
-                Money.MakeMaximumPayback();
                 if (first_line != null)
                 {
                     first_line_built = true;
                     LastRouteExpansion = AIDate.GetCurrentDate();
+                    LastLineMaintenanceDate = AIDate.GetCurrentDate();
                     Lines.append(first_line);
                     Log.Info("Initial line construction successful.", 
                              Log.LVL_INFO);
@@ -348,32 +500,20 @@ class robotAI2 extends AIController
                     Log.Error("Failed to build initial line, error: " + 
                               AIError.GetLastErrorString(), Log.LVL_INFO);
                 }
-            } else if ((AIDate.GetCurrentDate() - LastRouteExpansion) > 
-                       GetSetting("new_route_time"))
+            } else 
             {
-                if (UnservicedTowns.Count() > 0)
+                /* once first line is built, logic is replaced with main
+                   expansion/maintenance loop */
+                if ((AIDate.GetCurrentDate() - LastRouteExpansion) > 
+                    GetSetting("new_route_time"))
                 {
-                    Log.Info("Building new line.", Log.LVL_INFO);
-                    local new_line = BuildNewLine();
-                    if (new_line != null)
-                    {
-                        LastRouteExpansion = AIDate.GetCurrentDate();
-                        Lines.append(new_line);
-                        Log.Info("New line construction successful.", 
-                                 Log.LVL_INFO);
-                        Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
-                        Log.Info(ServicedTowns.Count() + " serviced towns.", 
-                                 Log.LVL_DEBUG);
-                        Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
-                                 Log.LVL_DEBUG);
-                    } else {
-                        Log.Error("Failed to build new line, error: " + 
-                                  AIError.GetLastErrorString(), Log.LVL_INFO);
-                    }
-                } else {
-                    Log.Info("All towns connected!", Log.LVL_INFO);
-                    LastRouteExpansion = AIDate.GetCurrentDate();
-                    RebuildUnservicedTownList();
+                    DoNewLineConstruction();
+                }
+            
+                if ((AIDate.GetCurrentDate() - LastLineMaintenanceDate) >
+                    GetSetting("line_maintenance_time"))
+                {
+                    DoLineMaintenance()
                 }
             }
             
