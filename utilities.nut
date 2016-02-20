@@ -53,7 +53,11 @@ class Utilities
         engine_list.KeepValue(1);
         engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
         engine_list.KeepValue(1);
-    
+        
+        // filter out articulated road vehicles, until support for them is added
+        engine_list.Valuate(AIEngine.IsArticulated);
+        engine_list.KeepValue(0);
+        
         Log.Info("Total vehicles after filtering: " + engine_list.Count(),
                  Log.LVL_DEBUG);
              
