@@ -28,6 +28,12 @@ class robotAI2 extends AIInfo {
                     custom_value = 1,
                     flags = AICONFIG_INGAME});
         
+        AddLabels("log_level",
+                  {_0 = "Logging disabled",
+                   _1 = "Info only",
+                   _2 = "Sub-decisions",
+                   _3 = "Debug"});
+        
         AddSetting({name = "vehicle_refresh",
                     description = "Duration (in days) between vehicle list refresh",
                     min_value = 30,
@@ -38,11 +44,16 @@ class robotAI2 extends AIInfo {
                     custom_value = 182,
                     flags = AICONFIG_INGAME});
         
-        AddLabels("log_level",
-                  {_0 = "Logging disabled",
-                   _1 = "Info only",
-                   _2 = "Sub-decisions",
-                   _3 = "Debug"});
+        AddSetting({name = "new_route_time",
+                    description = "Time (in days) between building new routes",
+                    min_value = 30,
+                    max_value = 365,
+                    easy_value = 90,
+                    medium_value = 60,
+                    hard_value = 30,
+                    custom_value = 60,
+                    flags = AICONFIG_INGAME});
+
     }
 }
 
