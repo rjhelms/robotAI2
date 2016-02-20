@@ -428,6 +428,20 @@ class robotAI2 extends AIController
                         AIGroup.MoveVehicle(Lines[i].Group, vehicle);
                         AIVehicle.StartStopVehicle(vehicle);
                         Lines[i].LastUpdateDate = AIDate.GetCurrentDate();
+                        
+                        // multiple by 10 to fudge integer arithmetic
+                        if ((AIVehicleList_Group(Lines[i].Group).Count() * 10) / 
+                            Lines[i].StationStopNumber >= 
+                            (GetSetting("vehicles_per_stop") * 10))
+                        {
+                            Log.Info(line_name + ": needs new stops.",
+                                     Log.LVL_SUB_DECISIONS);
+                            Road.GrowStation(Lines[i].Station1, 
+                                             AIStation.STATION_BUS_STOP);
+                            Road.GrowStation(Lines[i].Station2, 
+                                             AIStation.STATION_BUS_STOP);
+                            Lines[i].StationStopNumber += 1;
+                        }
                     } else 
                     {
                         Log.Error("Error adding vehicle to line " + i + ": " + 

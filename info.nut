@@ -46,7 +46,7 @@ class robotAI2 extends AIInfo {
         
         AddSetting({name = "new_route_time",
                     description = "Time (in days) between building new routes",
-                    min_value = 30,
+                    min_value = 10,
                     max_value = 365,
                     easy_value = 90,
                     medium_value = 60,
@@ -72,6 +72,16 @@ class robotAI2 extends AIInfo {
                     medium_value = 45,
                     hard_value = 55,
                     custom_value = 45,
+                    flags = AICONFIG_INGAME});
+        
+        AddSetting({name = "vehicles_per_stop",
+                    description = "Number of vehicles on a route for each bus stop",
+                    min_value = 1,
+                    max_value = 100,
+                    easy_value = 20,
+                    medium_value = 10,
+                    hard_value = 5,
+                    custom_value = 10,
                     flags = AICONFIG_INGAME});
     }
 }
