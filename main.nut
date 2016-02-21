@@ -465,71 +465,48 @@ class robotAI2 extends AIController
             return;
         }
           
-          local first_line_built = false;
+        local first_line_built = false;
           
         Log.Info("Initialized!", Log.LVL_INFO);
         
         // try to build the first line as soon as AI is awake
-        local first_line = BuildFirstLine();
-        if (first_line != null)
+        
+        while (!first_line_built)
         {
-            first_line_built = true;
-            LastRouteExpansion = AIDate.GetCurrentDate();
-            LastLineMaintenanceDate = AIDate.GetCurrentDate();
-            Lines.append(first_line);
-            Log.Info("Initial line construction successful.", Log.LVL_INFO);
-            Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
-            Log.Info(ServicedTowns.Count() + " serviced towns.", 
-                     Log.LVL_DEBUG);
-            Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
-                     Log.LVL_DEBUG);
-        } else {
-            Log.Error("Failed to build initial line, error: " + 
-                      AIError.GetLastErrorString(), Log.LVL_INFO);
+            local first_line = BuildFirstLine();
+            if (first_line != null)
+            {
+                first_line_built = true;
+                LastRouteExpansion = AIDate.GetCurrentDate();
+                LastLineMaintenanceDate = AIDate.GetCurrentDate();
+                Lines.append(first_line);
+                Log.Info("Initial line construction successful.", Log.LVL_INFO);
+                Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
+                Log.Info(ServicedTowns.Count() + " serviced towns.", 
+                        Log.LVL_DEBUG);
+                Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
+                        Log.LVL_DEBUG);
+            } else {
+                Log.Error("Failed to build initial line, error: " + 
+                        AIError.GetLastErrorString(), Log.LVL_INFO);
+            }
+            this.Sleep(50);
         }
         
+        // after first line is built, enter main maintenance/expansion loop
         while (true) {
-            this.Sleep(50);
-            if (!first_line_built)
+            if ((AIDate.GetCurrentDate() - LastRouteExpansion) > 
+                GetSetting("new_route_time"))
             {
-                // keep trying to build first line until we get it
-                Log.Info("Reattempting construction of inital line.", 
-                         Log.LVL_INFO);
-                         
-                first_line = BuildFirstLine();
-                if (first_line != null)
-                {
-                    first_line_built = true;
-                    LastRouteExpansion = AIDate.GetCurrentDate();
-                    LastLineMaintenanceDate = AIDate.GetCurrentDate();
-                    Lines.append(first_line);
-                    Log.Info("Initial line construction successful.", 
-                             Log.LVL_INFO);
-                    Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
-                    Log.Info(ServicedTowns.Count() + " serviced towns.", 
-                             Log.LVL_DEBUG);
-                    Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
-                             Log.LVL_DEBUG);
-                } else {
-                    Log.Error("Failed to build initial line, error: " + 
-                              AIError.GetLastErrorString(), Log.LVL_INFO);
-                }
-            } else 
-            {
-                /* once first line is built, logic is replaced with main
-                   expansion/maintenance loop */
-                if ((AIDate.GetCurrentDate() - LastRouteExpansion) > 
-                    GetSetting("new_route_time"))
-                {
-                    DoNewLineConstruction();
-                }
-            
-                if ((AIDate.GetCurrentDate() - LastLineMaintenanceDate) >
-                    GetSetting("line_maintenance_time"))
-                {
-                    DoLineMaintenance()
-                }
+                DoNewLineConstruction();
             }
+        
+            if ((AIDate.GetCurrentDate() - LastLineMaintenanceDate) >
+                GetSetting("line_maintenance_time"))
+            {
+                DoLineMaintenance()
+            }
+ 
             
             if ((AIDate.GetCurrentDate() - BestVehicleDate) > 
                 GetSetting("vehicle_refresh"))
