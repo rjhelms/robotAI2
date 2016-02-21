@@ -129,7 +129,7 @@ class robotAI2 extends AIController
         }
         
         // build a depot in the first town
-        local depot = Road.BuildDepotNextToRoad(town1_location, 0, 10);
+        local depot = Road.BuildDepotNextToRoad(town1_location, 0, 50);
         if (depot == null)
         {
             Log.Error("Failed to build depot.", Log.LVL_INFO);
@@ -280,7 +280,7 @@ class robotAI2 extends AIController
             
             // try to build a depot in the first town
             depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[0]), 0, 
-                                              10);
+                                              50);
             if (depot != null)
             {
                 depot_town = towns[0];
@@ -288,7 +288,7 @@ class robotAI2 extends AIController
                 /* if building depot in the first town failed, build a depot
                    in the second town */ 
                 depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[1]), 
-                                                  0, 10);
+                                                  0, 50);
                 depot_town = towns[1];
             }
         }
