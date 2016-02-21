@@ -219,7 +219,7 @@ class robotAI2 extends AIController
             UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
             local closest_town = UnservicedTowns.Begin();
             Log.Info("Closest town to " + AITown.GetName(this_town) + ": " +
-                     AITown.GetName(closest_town), Log.LVL_SUB_DECISIONS);
+                     AITown.GetName(closest_town), Log.LVL_DEBUG);
             candidate_towns.AddItem(closest_town, 
                                     Utilities.GetRandomizedPopulation(closest_town, 
                                                                       300)); 
