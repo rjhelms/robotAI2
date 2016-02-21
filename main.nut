@@ -415,10 +415,50 @@ class robotAI2 extends AIController
         }
     }
     
+    // logic for adding a new vehicle to an existing line
+    function AddVehicleToLine(line)
+    {
+        local line_name = AIGroup.GetName(line.Group);
+        Log.Info(line_name + ": needs new vehicle.", 
+                 Log.LVL_SUB_DECISIONS);
+        Money.MaxLoan();
+        local vehicle = AIVehicle.BuildVehicle(line.Depot, 
+                                               BestVehicle);
+        if (AIVehicle.IsValidVehicle(vehicle))
+        {
+            AIVehicle.RefitVehicle(vehicle, PAXCargo);
+            AIOrder.ShareOrders(vehicle, 
+                                AIVehicleList_Group(line.Group)
+                                    .Begin());
+            AIGroup.MoveVehicle(line.Group, vehicle);
+            AIVehicle.StartStopVehicle(vehicle);
+            line.LastUpdateDate = AIDate.GetCurrentDate();
+            
+            // multiple by 10 to fudge integer arithmetic
+            if ((AIVehicleList_Group(line.Group).Count() * 10) / 
+                line.StationStopNumber >= 
+                (GetSetting("vehicles_per_stop") * 10))
+            {
+                Log.Info(line_name + ": needs new stops.",
+                         Log.LVL_SUB_DECISIONS);
+                Road.GrowStation(line.Station1, 
+                                 AIStation.STATION_BUS_STOP);
+                Road.GrowStation(line.Station2, 
+                                 AIStation.STATION_BUS_STOP);
+                line.StationStopNumber += 1;
+            }
+        } else 
+        {
+            Log.Error(line_name + ": error adding vehicle: " + 
+                      AIError.GetLastErrorString(), Log.LVL_INFO);
+        }
+        Money.MakeMaximumPayback();
+    }
+    
     function DoLineMaintenance()
     {
         Log.Info("Maintaining lines.", Log.LVL_INFO);
-        for (local i = 0; i<Lines.len(); i+=1)
+        for (local i = 0; i < Lines.len(); i += 1)
         {
             local current_money = Money.GetMaxSpendingAmount();
             local target_money = Money.Inflate(GetSetting("min_cash_new_vehicle"));
@@ -444,40 +484,7 @@ class robotAI2 extends AIController
                          line_rating, Log.LVL_DEBUG);
                 if (line_rating < GetSetting("minimum_station_rating"))
                 {
-                    Log.Info(line_name + ": needs new vehicle.", 
-                             Log.LVL_SUB_DECISIONS);
-                    Money.MaxLoan();
-                    local vehicle = AIVehicle.BuildVehicle(Lines[i].Depot, 
-                                                           BestVehicle);
-                    if (AIVehicle.IsValidVehicle(vehicle))
-                    {
-                        AIVehicle.RefitVehicle(vehicle, PAXCargo);
-                        AIOrder.ShareOrders(vehicle, 
-                                            AIVehicleList_Group(Lines[i].Group)
-                                                .Begin());
-                        AIGroup.MoveVehicle(Lines[i].Group, vehicle);
-                        AIVehicle.StartStopVehicle(vehicle);
-                        Lines[i].LastUpdateDate = AIDate.GetCurrentDate();
-                        
-                        // multiple by 10 to fudge integer arithmetic
-                        if ((AIVehicleList_Group(Lines[i].Group).Count() * 10) / 
-                            Lines[i].StationStopNumber >= 
-                            (GetSetting("vehicles_per_stop") * 10))
-                        {
-                            Log.Info(line_name + ": needs new stops.",
-                                     Log.LVL_SUB_DECISIONS);
-                            Road.GrowStation(Lines[i].Station1, 
-                                             AIStation.STATION_BUS_STOP);
-                            Road.GrowStation(Lines[i].Station2, 
-                                             AIStation.STATION_BUS_STOP);
-                            Lines[i].StationStopNumber += 1;
-                        }
-                    } else 
-                    {
-                        Log.Error("Error adding vehicle to line " + i + ": " + 
-                                  AIError.GetLastErrorString(), Log.LVL_INFO);
-                    }
-                    Money.MakeMaximumPayback();
+                    AddVehicleToLine(Lines[i]);
                 }
             } else {
                 Log.Info(AIGroup.GetName(Lines[i].Group) + ": maintenance unneeded",
