@@ -373,6 +373,22 @@ class robotAI2 extends AIController
     
     function DoNewLineConstruction()
     {
+        // check if there's enough money on hand before building
+        local current_money = Money.GetMaxSpendingAmount();
+        local target_money = Money.Inflate(GetSetting("min_cash_new_route"));
+        
+        if (current_money < target_money)
+        {
+            Log.Info("Deferring line construction. " + current_money + 
+                     " available, " + target_money + " needed", 
+                     Log.LVL_SUB_DECISIONS);
+            
+            LastRouteExpansion = AIDate.GetCurrentDate();
+            return;
+        }
+        
+        /* if we've got the money and there's unserviced towns, try to build a 
+           route */
         if (UnservicedTowns.Count() > 0)
         {
             Log.Info("Building new line.", Log.LVL_INFO);
@@ -404,6 +420,20 @@ class robotAI2 extends AIController
         Log.Info("Maintaining lines.", Log.LVL_INFO);
         for (local i = 0; i<Lines.len(); i+=1)
         {
+            local current_money = Money.GetMaxSpendingAmount();
+            local target_money = Money.Inflate(GetSetting("min_cash_new_vehicle"));
+            
+            // if we're out of money, end the maintenance routine early
+            if (current_money < target_money)
+            {
+                Log.Info("Deferring maintenance: " + current_money + 
+                         " available, " + target_money + " needed", 
+                         Log.LVL_SUB_DECISIONS);
+              
+              LastLineMaintenanceDate = AIDate.GetCurrentDate();
+              return;
+            }
+            
             // Each line is only maintained once every two update intervals
             if (AIDate.GetCurrentDate() - (Lines[i].LastUpdateDate) > 
                 (GetSetting("line_maintenance_time") * 2))

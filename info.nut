@@ -83,6 +83,26 @@ class robotAI2 extends AIInfo {
                     hard_value = 5,
                     custom_value = 10,
                     flags = AICONFIG_INGAME});
+                    
+        AddSetting({name = "min_cash_new_route",
+                    description = "Minimum money for building new routes",
+                    min_value = 0,
+                    max_value = 1000000,
+                    easy_value = 50000,
+                    medium_value = 50000,
+                    hard_value = 50000,
+                    custom_value = 50000,
+                    flags = AICONFIG_INGAME});
+                    
+        AddSetting({name = "min_cash_new_vehicle",
+                    description = "Minimum money for buying nev vehicles",
+                    min_value = 0,
+                    max_value = 1000000,
+                    easy_value = 20000,
+                    medium_value = 20000,
+                    hard_value = 20000,
+                    custom_value = 20000,
+                    flags = AICONFIG_INGAME});
     }
 }
 
