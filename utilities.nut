@@ -116,4 +116,12 @@ class Utilities
                  Log.LVL_SUB_DECISIONS);
         return best_vehicle;
     }
+    
+    function GetVehiclesPerStationTile(station_id, station_type, multiplier)
+    {
+        local station_tile_count = AITileList_StationType
+                                    (station_id, station_type).Count();
+        local station_vehicle_count = AIVehicleList_Station(station_id).Count();
+        return (station_vehicle_count * multiplier) / station_tile_count;
+    }
 }

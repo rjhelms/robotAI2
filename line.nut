@@ -6,7 +6,6 @@ class Line
     Group = null;
     Cargo = null;
     LastUpdateDate = null;
-    StationStopNumber = null;
     
     constructor(station1_id, station2_id, depot_tile, group_id, cargo)
     {
@@ -16,7 +15,6 @@ class Line
         Group = group_id;
         Cargo = cargo;
         LastUpdateDate = AIDate.GetCurrentDate();
-        StationStopNumber = 1;
     }
     
     function GetAverageStationRating()
@@ -24,4 +22,5 @@ class Line
         return (AIStation.GetCargoRating(Station1, Cargo) + 
                AIStation.GetCargoRating(Station2, Cargo)) / 2;
     }
+
 }
