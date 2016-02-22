@@ -58,6 +58,11 @@ class robotAI2 extends AIController
             Log.Error("No passenger cargo in game.", Log.LVL_INFO);
             return false;
         }
+        if (Vehicle.GetVehiclesLeft(AIVehicle.VT_ROAD) <= 0)
+        {
+            Log.Error("Can't build road vehicles.", Log.LVL_INFO);
+            return false;
+        }
         BestVehicle = Utilities.GetBestRoadVehicle(AIRoad.ROADTYPE_ROAD,
                                                    PAXCargo, 1, 1);
         BestVehicleDate = AIDate.GetCurrentDate();
@@ -380,6 +385,14 @@ class robotAI2 extends AIController
     
     function DoNewLineConstruction()
     {
+        if (Vehicle.GetVehiclesLeft(AIVehicle.VT_ROAD) <= 0)
+        {
+            Log.Info("Deferring line construction, vehicle limit reached.",
+                     Log.LVL_SUB_DECISIONS);
+            LastRouteExpansion = AIDate.GetCurrentDate();
+            return;
+        }
+        
         // check if there's enough money on hand before building
         local current_money = Money.GetMaxSpendingAmount();
         local target_money = Money.Inflate(GetSetting("min_cash_new_route"));
@@ -426,6 +439,16 @@ class robotAI2 extends AIController
     function AddVehicleToLine(line)
     {
         local line_name = AIGroup.GetName(line.Group);
+        
+        if (Vehicle.GetVehiclesLeft(AIVehicle.VT_ROAD) <= 0)
+        {
+            Log.Info(line_name + 
+                     ": deferring new vehicle, vehicle limit reached",
+                     Log.LVL_SUB_DECISIONS);
+            line.LastUpdateDate = AIDate.GetCurrentDate();
+            return;
+        }
+        
         Log.Info(line_name + ": needs new vehicle.", 
                  Log.LVL_SUB_DECISIONS);
         Money.MaxLoan();
