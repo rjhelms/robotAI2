@@ -49,10 +49,19 @@ class Utilities
         // filter list to buildable engines that match type and cargo
         engine_list.Valuate(AIEngine.GetRoadType);
         engine_list.KeepValue(road_type);
+        
+        Log.Info("Vehicles of correct type: " + engine_list.Count(),
+                 Log.LVL_DEBUG);
+                 
         engine_list.Valuate(AIEngine.IsBuildable);
         engine_list.KeepValue(1);
+        
+        Log.Info("Buildable vehicles: " + engine_list.Count(), Log.LVL_DEBUG);
+        
         engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
         engine_list.KeepValue(1);
+        
+        Log.Info("Refittable to cargo: " + engine_list.Count(), Log.LVL_DEBUG);
         
         /* filter out articulated road vehicles, until support for them is 
            added */
@@ -61,7 +70,13 @@ class Utilities
         
         Log.Info("Total vehicles after filtering: " + engine_list.Count(),
                  Log.LVL_DEBUG);
-             
+        
+        if (engine_list.Count() == 0)
+        {
+        	Log.Error("No valid vehicles!", Log.LVL_INFO);
+        	return null;
+        }
+        
         engine_list.Valuate(Utilities.EngineChoiceHeuristic, speed_weight, 
                             capacity_weight);
         engine_list.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);

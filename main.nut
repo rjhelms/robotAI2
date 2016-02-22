@@ -67,6 +67,11 @@ class robotAI2 extends AIController
                                                    PAXCargo, 1, 1);
         BestVehicleDate = AIDate.GetCurrentDate();
         
+        if (BestVehicle == null)
+        {
+            return false;
+        }
+        
         OldVehicleGroup = AIGroup.CreateGroup(AIVehicle.VT_ROAD);
         AIGroup.SetName(OldVehicleGroup, "Old Vehicles");
         
@@ -611,18 +616,24 @@ class robotAI2 extends AIController
         
         // after first line is built, enter main maintenance/expansion loop
         while (true) {
-            if ((AIDate.GetCurrentDate() - LastRouteExpansion) > 
-                GetSetting("new_route_time"))
+            
+            /* only attempt expansion and maintenance while there's a valid 
+               vehicle */
+            if (BestVehicle != null)
             {
-                DoNewLineConstruction();
+                if ((AIDate.GetCurrentDate() - LastRouteExpansion) > 
+                    GetSetting("new_route_time"))
+                {
+                    DoNewLineConstruction();
+                }
+                
+                if ((AIDate.GetCurrentDate() - LastLineMaintenanceDate) >
+                    GetSetting("line_maintenance_time"))
+                {
+                    DoLineMaintenance()
+                }
+                
             }
-        
-            if ((AIDate.GetCurrentDate() - LastLineMaintenanceDate) >
-                GetSetting("line_maintenance_time"))
-            {
-                DoLineMaintenance()
-            }
- 
             
             if ((AIDate.GetCurrentDate() - BestVehicleDate) > 
                 GetSetting("vehicle_refresh"))
