@@ -5,6 +5,7 @@ Helper      <- SuperLib.Helper;
 Log         <- SuperLib.Log;
 OrderList   <- SuperLib.OrderList;
 Money       <- SuperLib.Money;
+Vehicle     <- SuperLib.Vehicle;
 
 require("utilities.nut");
 require("line.nut");
@@ -22,6 +23,7 @@ class robotAI2 extends AIController
     BestVehicleDate = null;
     LastRouteExpansion = null;
     LastLineMaintenanceDate = null;
+    OldVehicleGroup = null;
     
     constructor()
     {
@@ -40,26 +42,30 @@ class robotAI2 extends AIController
                while (!AICompany.SetName("robotAI2 #" + i)) {
                   i = i + 1;
             }
-          }
-          UnservicedTowns = AITownList();
-          if (UnservicedTowns.IsEmpty())
-          {
-              Log.Error("No towns in game.", Log.LVL_INFO);
-              return false;
-          } else {
-              Log.Info(UnservicedTowns.Count() + " towns in game", 
-                       Log.LVL_DEBUG);
-          }
-          PAXCargo = Helper.GetPAXCargo();
-          if (PAXCargo == null)
-          {
-              Log.Error("No passenger cargo in game.", Log.LVL_INFO);
-              return false;
-          }
-          BestVehicle = Utilities.GetBestRoadVehicle(AIRoad.ROADTYPE_ROAD,
+        }
+        UnservicedTowns = AITownList();
+        if (UnservicedTowns.IsEmpty())
+        {
+            Log.Error("No towns in game.", Log.LVL_INFO);
+            return false;
+        } else {
+            Log.Info(UnservicedTowns.Count() + " towns in game", 
+                     Log.LVL_DEBUG);
+        }
+        PAXCargo = Helper.GetPAXCargo();
+        if (PAXCargo == null)
+        {
+            Log.Error("No passenger cargo in game.", Log.LVL_INFO);
+            return false;
+        }
+        BestVehicle = Utilities.GetBestRoadVehicle(AIRoad.ROADTYPE_ROAD,
                                                    PAXCargo, 1, 1);
         BestVehicleDate = AIDate.GetCurrentDate();
-          return true;
+        
+        OldVehicleGroup = AIGroup.CreateGroup(AIVehicle.VT_ROAD);
+        AIGroup.SetName(OldVehicleGroup, "Old Vehicles");
+        
+        return true;
     }
     
     /*     
@@ -455,6 +461,51 @@ class robotAI2 extends AIController
         Money.MakeMaximumPayback();
     }
     
+    function HandleOldVehicles(line)
+    {
+        local line_name = AIGroup.GetName(line.Group);
+        local vehicle_list = AIVehicleList_Group(line.Group);
+        
+        local total_vehicles = vehicle_list.Count();
+        Log.Info(line_name + ": total vehicles " + total_vehicles,
+                 Log.LVL_DEBUG);
+        
+        if (total_vehicles > 1)
+        {
+            vehicle_list.Valuate(AIVehicle.GetAgeLeft);
+            vehicle_list.RemoveAboveValue(0);
+            if (vehicle_list.Count() > 0)
+            {
+                Log.Info(line_name + ": has old vehicles", 
+                         Log.LVL_SUB_DECISIONS);
+                Log.Info(line_name + ": old vehicles " + 
+                         vehicle_list.Count(), Log.LVL_DEBUG);
+                vehicle_list.Valuate(AIVehicle.GetAge);
+                vehicle_list.Sort(AIList.SORT_BY_VALUE, 
+                                  AIList.SORT_DESCENDING);
+                local old_vehicle = vehicle_list.Begin();
+                
+                do
+                {
+                    AIGroup.MoveVehicle(OldVehicleGroup, old_vehicle);
+                    Vehicle.SendVehicleToDepotForSelling(old_vehicle, 
+                                                         line.Depot);
+                    old_vehicle = vehicle_list.Next();
+                    total_vehicles -= 1;
+                    if (total_vehicles == 1)
+                    {
+                        Log.Info(line_name + 
+                                 ": only one vehicle left, aborting sell-off",
+                                 Log.LVL_SUB_DECISIONS);
+                    }
+                } while (!vehicle_list.IsEnd() && total_vehicles > 1);
+                line.LastUpdateDate = AIDate.GetCurrentDate();
+            }
+        }
+        
+        Vehicle.SellVehiclesInDepot(line.Depot);
+    }
+    
     function DoLineMaintenance()
     {
         Log.Info("Maintaining lines.", Log.LVL_INFO);
@@ -482,10 +533,12 @@ class robotAI2 extends AIController
                 local line_name = AIGroup.GetName(Lines[i].Group);
                 Log.Info(line_name + ": station rating " + 
                          line_rating, Log.LVL_DEBUG);
+                         
                 if (line_rating < GetSetting("minimum_station_rating"))
                 {
                     AddVehicleToLine(Lines[i]);
                 }
+                HandleOldVehicles(Lines[i]);
             } else {
                 Log.Info(AIGroup.GetName(Lines[i].Group) + ": maintenance unneeded",
                          Log.LVL_DEBUG);
