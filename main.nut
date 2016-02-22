@@ -492,7 +492,7 @@ class robotAI2 extends AIController
                                                          line.Depot);
                     old_vehicle = vehicle_list.Next();
                     total_vehicles -= 1;
-                    if (total_vehicles == 1)
+                    if (!vehicle_list.IsEnd() && total_vehicles == 1)
                     {
                         Log.Info(line_name + 
                                  ": only one vehicle left, aborting sell-off",
