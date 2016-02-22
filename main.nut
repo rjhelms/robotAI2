@@ -227,8 +227,9 @@ class robotAI2 extends AIController
             Log.Info("Closest town to " + AITown.GetName(this_town) + ": " +
                      AITown.GetName(closest_town), Log.LVL_DEBUG);
             candidate_towns.AddItem(closest_town, 
-                                    Utilities.GetRandomizedPopulation(closest_town, 
-                                                                      300)); 
+                                    Utilities.
+                                        GetRandomizedPopulation(closest_town, 
+                                                                300)); 
             this_town = ServicedTowns.Next();
         } while (!ServicedTowns.IsEnd())
         
@@ -285,7 +286,7 @@ class robotAI2 extends AIController
         } else {
             
             // try to build a depot in the first town
-            depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[0]), 0, 
+            depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[0]), 0,
                                               50);
             if (depot != null)
             {
@@ -293,7 +294,7 @@ class robotAI2 extends AIController
             } else {
                 /* if building depot in the first town failed, build a depot
                    in the second town */ 
-                depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[1]), 
+                depot = Road.BuildDepotNextToRoad(AITown.GetLocation(towns[1]),
                                                   0, 50);
                 depot_town = towns[1];
             }
@@ -393,7 +394,7 @@ class robotAI2 extends AIController
             return;
         }
         
-        /* if we've got the money and there's unserviced towns, try to build a 
+        /* if we've got the money and there's unserviced towns, try to build a
            route */
         if (UnservicedTowns.Count() > 0)
         {
@@ -512,7 +513,8 @@ class robotAI2 extends AIController
         for (local i = 0; i < Lines.len(); i += 1)
         {
             local current_money = Money.GetMaxSpendingAmount();
-            local target_money = Money.Inflate(GetSetting("min_cash_new_vehicle"));
+            local target_money = Money.Inflate
+                                        (GetSetting("min_cash_new_vehicle"));
             
             // if we're out of money, end the maintenance routine early
             if (current_money < target_money)
@@ -540,8 +542,8 @@ class robotAI2 extends AIController
                 }
                 HandleOldVehicles(Lines[i]);
             } else {
-                Log.Info(AIGroup.GetName(Lines[i].Group) + ": maintenance unneeded",
-                         Log.LVL_DEBUG);
+                Log.Info(AIGroup.GetName(Lines[i].Group) +
+                         ": maintenance unneeded", Log.LVL_DEBUG);
             }
         }
         LastLineMaintenanceDate = AIDate.GetCurrentDate();
@@ -570,7 +572,8 @@ class robotAI2 extends AIController
                 LastRouteExpansion = AIDate.GetCurrentDate();
                 LastLineMaintenanceDate = AIDate.GetCurrentDate();
                 Lines.append(first_line);
-                Log.Info("Initial line construction successful.", Log.LVL_INFO);
+                Log.Info("Initial line construction successful.",
+                         Log.LVL_INFO);
                 Log.Info(Lines.len() + " lines in service.", Log.LVL_INFO);
                 Log.Info(ServicedTowns.Count() + " serviced towns.", 
                         Log.LVL_DEBUG);
@@ -602,8 +605,9 @@ class robotAI2 extends AIController
                 GetSetting("vehicle_refresh"))
             {
                 Log.Info("Rebuilding list of vehicles.", Log.LVL_INFO);
-                BestVehicle = Utilities.GetBestRoadVehicle(AIRoad.ROADTYPE_ROAD,
-                                                           PAXCargo, 1, 1);
+                BestVehicle = Utilities.GetBestRoadVehicle
+                                            (AIRoad.ROADTYPE_ROAD, PAXCargo, 
+                                             1, 1);
                 BestVehicleDate = AIDate.GetCurrentDate();
             }
         }

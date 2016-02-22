@@ -11,7 +11,8 @@ class robotAI2 extends AIInfo {
     function GetSettings()
     {
         AddSetting({name = "debug_signs",
-                    description = "Use signs for display of debug infomarion",
+                    description 
+                        = "Use signs for display of debug infomarion",
                     easy_value = 0,
                     medium_value = 0,
                     hard_value = 0,
@@ -19,7 +20,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_BOOLEAN | AICONFIG_INGAME});
                     
         AddSetting({name = "log_level",
-                    description = "Level of logging to use",
+                    description 
+                        = "Level of logging to use",
                     min_value = 0,
                     max_value = 3,
                     easy_value = 1,
@@ -35,7 +37,8 @@ class robotAI2 extends AIInfo {
                    _3 = "Debug"});
         
         AddSetting({name = "vehicle_refresh",
-                    description = "Duration (in days) between vehicle list refresh",
+                    description = 
+                        "Duration (in days) between vehicle list refresh",
                     min_value = 30,
                     max_value = 2000,
                     easy_value = 365,
@@ -45,7 +48,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_INGAME});
         
         AddSetting({name = "new_route_time",
-                    description = "Time (in days) between building new routes",
+                    description = 
+                        "Time (in days) between building new routes",
                     min_value = 10,
                     max_value = 365,
                     easy_value = 90,
@@ -55,7 +59,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_INGAME});
         
         AddSetting({name = "line_maintenance_time",
-                    description = "Time (in days) between maintaining existing lines",
+                    description = 
+                        "Time (in days) between maintaining existing lines",
                     min_value = 30,
                     max_value = 2000,
                     easy_value = 180,
@@ -65,7 +70,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_INGAME});
         
         AddSetting({name = "minimum_station_rating",
-                    description = "Minimum station rating considered acceptable",
+                    description = 
+                        "Minimum station rating considered acceptable",
                     min_value = 0,
                     max_value = 100,
                     easy_value = 30,
@@ -75,7 +81,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_INGAME});
         
         AddSetting({name = "vehicles_per_stop",
-                    description = "Number of vehicles on a route for each bus stop",
+                    description = 
+                        "Number of vehicles on a route for each bus stop",
                     min_value = 1,
                     max_value = 100,
                     easy_value = 20,
@@ -85,7 +92,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_INGAME});
                     
         AddSetting({name = "min_cash_new_route",
-                    description = "Minimum money for building new routes",
+                    description = 
+                        "Minimum money for building new routes",
                     min_value = 0,
                     max_value = 1000000,
                     easy_value = 50000,
@@ -95,7 +103,8 @@ class robotAI2 extends AIInfo {
                     flags = AICONFIG_INGAME});
                     
         AddSetting({name = "min_cash_new_vehicle",
-                    description = "Minimum money for buying nev vehicles",
+                    description = 
+                        "Minimum money for buying nev vehicles",
                     min_value = 0,
                     max_value = 1000000,
                     easy_value = 20000,

@@ -54,7 +54,8 @@ class Utilities
         engine_list.Valuate(AIEngine.CanRefitCargo, cargo);
         engine_list.KeepValue(1);
         
-        // filter out articulated road vehicles, until support for them is added
+        /* filter out articulated road vehicles, until support for them is 
+           added */
         engine_list.Valuate(AIEngine.IsArticulated);
         engine_list.KeepValue(0);
         
