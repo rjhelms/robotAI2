@@ -104,12 +104,12 @@ class robotAI2 extends AIController
         local town1_location = AITown.GetLocation(town1);
         UnservicedTowns.RemoveItem(town1);
         
-        // get the closest town
-        UnservicedTowns.Valuate(Utilities.GetRandomizedTownDistance, 
-                                town1_location, 100);
+        // get the best town
+        UnservicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+                                town1_location, BestVehicle, 100);
         UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
         local town2 = UnservicedTowns.Begin();
-        Log.Info("Closest town is " + AITown.GetName(town2), 
+        Log.Info("Ideal town is " + AITown.GetName(town2), 
                  Log.LVL_SUB_DECISIONS);
         
         Log.Info("Building route from " + AITown.GetName(town1) + " to " 
@@ -230,11 +230,12 @@ class robotAI2 extends AIController
         local this_town = ServicedTowns.Begin();
         local candidate_towns = AIList();
         do {
-            UnservicedTowns.Valuate(Utilities.GetRandomizedTownDistance, 
-                                    AITown.GetLocation(this_town), 100);
+            UnservicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+                                    AITown.GetLocation(this_town), BestVehicle,
+                                    100);
             UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
             local closest_town = UnservicedTowns.Begin();
-            Log.Info("Closest town to " + AITown.GetName(this_town) + ": " +
+            Log.Info("Ideal town from " + AITown.GetName(this_town) + ": " +
                      AITown.GetName(closest_town), Log.LVL_DEBUG);
             candidate_towns.AddItem(closest_town, 
                                     Utilities.
@@ -246,8 +247,9 @@ class robotAI2 extends AIController
         candidate_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
         
         // don't use randomization here, as candidate list is random enough
-        ServicedTowns.Valuate(AITown.GetDistanceManhattanToTile, 
-                              AITown.GetLocation(candidate_towns.Begin()));
+        ServicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+                              AITown.GetLocation(candidate_towns.Begin()), 
+                              BestVehicle, 0);
         ServicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
         
         Log.Info("Next expansion: " + AITown.GetName(ServicedTowns.Begin()) + 

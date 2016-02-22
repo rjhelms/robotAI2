@@ -63,7 +63,21 @@ class Utilities
                  distance_randomized, Log.LVL_DEBUG);
         return distance_randomized;
     }
-
+    
+    static function GetDeviationFromIdealDistance(town_id, tile_id, engine_id, 
+                                                  random_range)
+    {
+        local distance_randomized = Utilities.
+                                        GetRandomizedTownDistance(town_id, 
+                                                                  tile_id,
+                                                                  random_range);
+        local ideal_distance = AIEngine.GetMaxSpeed(engine_id) * 2.5;
+        local deviation = distance_randomized - ideal_distance;
+        Log.Info(AITown.GetName(town_id) + " to " + tile_id + 
+                 ": deviation from ideal " + deviation, Log.LVL_DEBUG);
+        return abs(distance_randomized - ideal_distance);
+    }
+    
     static function GetBestRoadVehicle(road_type, cargo, speed_weight, 
                                        capacity_weight)
     {
