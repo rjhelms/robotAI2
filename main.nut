@@ -476,10 +476,10 @@ class robotAI2 extends AIController
             {
                 Log.Info(line_name + ": needs new stops.",
                          Log.LVL_SUB_DECISIONS);
-                Road.GrowStation(line.Station1, 
-                                 AIStation.STATION_BUS_STOP);
-                Road.GrowStation(line.Station2, 
-                                 AIStation.STATION_BUS_STOP);
+                Utilities.ExpandRoadStation(line.Station1, 
+                                            AIStation.STATION_BUS_STOP);
+                Utilities.ExpandRoadStation(line.Station2, 
+                                            AIStation.STATION_BUS_STOP);
                 line.StationStopNumber += 1;
             }
         } else 

@@ -1,3 +1,7 @@
+import("util.superlib", "SuperLib", 39);
+Result      <- SuperLib.Result;
+Road        <- SuperLib.Road;
+
 class Utilities
 {
     static function EngineChoiceHeuristic(engineID, speedWeight, 
@@ -11,6 +15,32 @@ class Utilities
         return score;
     }
 
+    static function ExpandRoadStation(station_id, station_type)
+    {
+        local result = Road.GrowStationParallel(station_id, station_type);
+        if (Result.IsSuccess(result))
+        {
+            return true;
+        }
+        
+        if (AIGameSettings.GetValue("distant_join_stations") != 0)
+        {
+            Log.Info(AIStation.GetName(station_id) + 
+                     ": Parallel expansions failed, trying non-parallel",
+                     Log.LVL_SUB_DECISIONS);
+            result = Road.GrowStation(station_id, station_type);
+        }
+        
+        if (Result.IsSuccess(result))
+        {
+            return true;
+        }
+        
+        Log.Warning("Failed to expand " + AIStation.GetName(station_id),
+                    Log.LVL_INFO);
+        return false;
+    }
+    
     static function GetRandomizedPopulation(town_id, random_range)
     {
         local population_actual = AITown.GetPopulation(town_id);
