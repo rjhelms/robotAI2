@@ -162,14 +162,24 @@ class robotAI2 extends AIController
 
         roadBuilder.Init(town1_result, town2_result);
         roadBuilder.SetLoanLimit(-1);
-        //roadBuilder.DoPathfinding();
-        local road_builder_result = roadBuilder.ConnectTiles();
         
-        if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+        if (roadBuilder.DoPathfinding())
         {
-            Log.Error("Failed to build road.", Log.LVL_INFO);
+            local road_builder_result = roadBuilder.ConnectTiles();
             
-            // cleanup by removing stations and depot, and repaying loan
+            if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+            {
+                Log.Error("Failed to build road.", Log.LVL_INFO);
+                
+                // cleanup by removing stations and depot, and repaying loan
+                AIRoad.RemoveRoadStation(town1_result);
+                AIRoad.RemoveRoadStation(town2_result);
+                AIRoad.RemoveRoadDepot(depot);
+                Money.MakeMaximumPayback();
+                return null;
+            }
+        } else {
+            Log.Error("Failed to find path.", Log.LVL_INFO);
             AIRoad.RemoveRoadStation(town1_result);
             AIRoad.RemoveRoadStation(town2_result);
             AIRoad.RemoveRoadDepot(depot);
@@ -331,13 +341,26 @@ class robotAI2 extends AIController
                          town2_result);
                           
         roadBuilder.SetLoanLimit(-1);
-        local road_builder_result = roadBuilder.ConnectTiles();
         
-        // road building failed, abort
-        if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+        if (roadBuilder.DoPathfinding())
         {
-            Log.Error("Failed to build road.", Log.LVL_INFO);
-            
+           local road_builder_result = roadBuilder.ConnectTiles();
+           
+           // road building failed, abort
+           if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+          {
+              Log.Error("Failed to build road.", Log.LVL_INFO);
+              
+              // cleanup - remove constructed station and repay loan
+              AIRoad.RemoveRoadStation(town2_result);
+              Money.MakeMaximumPayback();
+              
+              // we can keep the depot, though
+              ServicedTownDepots.AddItem(depot_town, depot);
+              return null;
+           }
+        } else {
+            Log.Error("Failed to find path.", Log.LVL_INFO);
             // cleanup - remove constructed station and repay loan
             AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
