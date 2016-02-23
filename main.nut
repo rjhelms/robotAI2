@@ -161,7 +161,7 @@ class robotAI2 extends AIController
         local roadBuilder = RoadBuilder();
 
         roadBuilder.Init(town1_result, town2_result);
-        roadBuilder.connect_max_loops = 4000;
+        roadBuilder.connect_max_loops = 3500;
         roadBuilder.SetLoanLimit(-1);
         roadBuilder.SetEstimateMultiplier(2.0);
         
@@ -342,7 +342,7 @@ class robotAI2 extends AIController
                          (ServicedTownStations.GetValue(towns[0])), 
                          town2_result);
                           
-        roadBuilder.connect_max_loops = 4000;
+        roadBuilder.connect_max_loops = 3500;
         roadBuilder.SetLoanLimit(-1);
         roadBuilder.SetEstimateMultiplier(2.0);
         
