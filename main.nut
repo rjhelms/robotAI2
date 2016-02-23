@@ -593,9 +593,8 @@ class robotAI2 extends AIController
               return;
             }
             
-            // Each line is only maintained once every two update intervals
             if (AIDate.GetCurrentDate() - (Lines[i].LastUpdateDate) > 
-                (GetSetting("line_maintenance_time") * 2))
+                (GetSetting("line_maintenance_time")))
             {
                 local line_rating = Lines[i].GetAverageStationRating();
                 local line_name = AIGroup.GetName(Lines[i].Group);
