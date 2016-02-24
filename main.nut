@@ -6,6 +6,7 @@ Log         <- SuperLib.Log;
 OrderList   <- SuperLib.OrderList;
 Money       <- SuperLib.Money;
 Vehicle     <- SuperLib.Vehicle;
+Tile        <- SuperLib.Tile;
 
 require("utilities.nut");
 require("line.nut");
@@ -104,20 +105,47 @@ class robotAI2 extends AIController
         local town1_location = AITown.GetLocation(town1);
         UnservicedTowns.RemoveItem(town1);
         
-        // get the best town
+        // get the best town to join with
         UnservicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
                                 town1_location, BestVehicle, 100);
         UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
         local town2 = UnservicedTowns.Begin();
+        local town2_location = AITown.GetLocation(town2);
         Log.Info("Ideal town is " + AITown.GetName(town2), 
                  Log.LVL_SUB_DECISIONS);
         
         Log.Info("Building route from " + AITown.GetName(town1) + " to " 
                  + AITown.GetName(town2), Log.LVL_INFO);
         
-        // build road stations in the two towns
+        local town1_tile = Tile.FindClosestRoadTile(town1_location, 4);
+        local town2_tile = Tile.FindClosestRoadTile(town2_location, 4);
+        
+        // build a road between the two towns
         AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
-    
+        local roadBuilder = RoadBuilder();
+
+        roadBuilder.Init(town1_tile, town2_tile);
+        roadBuilder.connect_max_loops = 3500;
+        roadBuilder.SetLoanLimit(-1);
+        roadBuilder.SetEstimateMultiplier(2);
+        
+        if (roadBuilder.DoPathfinding())
+        {
+            local road_builder_result = roadBuilder.ConnectTiles();
+            
+            if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+            {
+                Log.Error("Failed to build road.", Log.LVL_INFO);
+                Money.MakeMaximumPayback();
+                return null;
+            }
+        } else {
+            Log.Error("Failed to find path.", Log.LVL_INFO);
+            Money.MakeMaximumPayback();
+            return null;
+        }
+        
+        // build road stations in the two towns
         local town1_result = Road.BuildStopInTown(town1, 
                                                   AIRoad.ROADVEHTYPE_BUS, 
                                                   PAXCargo, PAXCargo);
@@ -153,38 +181,6 @@ class robotAI2 extends AIController
             // cleanup by removing stations and repaying loan
             AIRoad.RemoveRoadStation(town1_result);
             AIRoad.RemoveRoadStation(town2_result);
-            Money.MakeMaximumPayback();
-            return null;
-        }
-        
-        // build a road between the two towns
-        local roadBuilder = RoadBuilder();
-
-        roadBuilder.Init(town1_result, town2_result);
-        roadBuilder.connect_max_loops = 3500;
-        roadBuilder.SetLoanLimit(-1);
-        roadBuilder.SetEstimateMultiplier(2.0);
-        
-        if (roadBuilder.DoPathfinding())
-        {
-            local road_builder_result = roadBuilder.ConnectTiles();
-            
-            if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
-            {
-                Log.Error("Failed to build road.", Log.LVL_INFO);
-                
-                // cleanup by removing stations and depot, and repaying loan
-                AIRoad.RemoveRoadStation(town1_result);
-                AIRoad.RemoveRoadStation(town2_result);
-                AIRoad.RemoveRoadDepot(depot);
-                Money.MakeMaximumPayback();
-                return null;
-            }
-        } else {
-            Log.Error("Failed to find path.", Log.LVL_INFO);
-            AIRoad.RemoveRoadStation(town1_result);
-            AIRoad.RemoveRoadStation(town2_result);
-            AIRoad.RemoveRoadDepot(depot);
             Money.MakeMaximumPayback();
             return null;
         }
@@ -282,6 +278,37 @@ class robotAI2 extends AIController
         
         AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
         
+        // find a road tile in town for pathfinding
+        local town2_tile = Tile.FindClosestRoadTile
+                            (AITown.GetLocation(towns[1]), 4);
+        
+        // build the road
+        local roadBuilder = RoadBuilder();
+        roadBuilder.Init(AIStation.GetLocation
+                         (ServicedTownStations.GetValue(towns[0])), 
+                         town2_tile);
+                          
+        roadBuilder.connect_max_loops = 3500;
+        roadBuilder.SetLoanLimit(-1);
+        roadBuilder.SetEstimateMultiplier(2.0);
+        
+        if (roadBuilder.DoPathfinding())
+        {
+           local road_builder_result = roadBuilder.ConnectTiles();
+           
+           // road building failed, abort
+           if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+          {
+              Log.Error("Failed to build road.", Log.LVL_INFO);
+              Money.MakeMaximumPayback();
+              return null;
+           }
+        } else {
+            Log.Error("Failed to find path.", Log.LVL_INFO);
+            Money.MakeMaximumPayback();
+            return null;
+        }
+        
         // build a station in the new town
         local town2_result = Road.BuildStopInTown(towns[1], 
                              AIRoad.ROADVEHTYPE_BUS, PAXCargo, PAXCargo);
@@ -332,45 +359,6 @@ class robotAI2 extends AIController
             // cleanup - remove constructed station and repay loan
             AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
-            return null;
-        }
-        
-        // build the road
-        local roadBuilder = RoadBuilder();
-
-        roadBuilder.Init(AIStation.GetLocation
-                         (ServicedTownStations.GetValue(towns[0])), 
-                         town2_result);
-                          
-        roadBuilder.connect_max_loops = 3500;
-        roadBuilder.SetLoanLimit(-1);
-        roadBuilder.SetEstimateMultiplier(2.0);
-        
-        if (roadBuilder.DoPathfinding())
-        {
-           local road_builder_result = roadBuilder.ConnectTiles();
-           
-           // road building failed, abort
-           if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
-          {
-              Log.Error("Failed to build road.", Log.LVL_INFO);
-              
-              // cleanup - remove constructed station and repay loan
-              AIRoad.RemoveRoadStation(town2_result);
-              Money.MakeMaximumPayback();
-              
-              // we can keep the depot, though
-              ServicedTownDepots.AddItem(depot_town, depot);
-              return null;
-           }
-        } else {
-            Log.Error("Failed to find path.", Log.LVL_INFO);
-            // cleanup - remove constructed station and repay loan
-            AIRoad.RemoveRoadStation(town2_result);
-            Money.MakeMaximumPayback();
-            
-            // we can keep the depot, though
-            ServicedTownDepots.AddItem(depot_town, depot);
             return null;
         }
         
