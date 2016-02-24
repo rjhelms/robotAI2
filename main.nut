@@ -259,8 +259,23 @@ class robotAI2 extends AIController
             from_towns.RemoveItem(LastFailedTowns[i]);
             to_towns.RemoveItem(LastFailedTowns[i]);
             Log.Info("Removing " + AITown.GetName(LastFailedTowns[i]) +
-                     "from consideration due to previous failure.", 
+                     " from consideration due to previous failure.", 
                      Log.LVL_SUB_DECISIONS);
+        }
+        
+        // remove towns with local authority ratings too low to build stations
+        local unhappy_towns = AIList();
+        unhappy_towns.AddList(UnservicedTowns);
+        unhappy_towns.Valuate(AITown.GetRating, AICompany.COMPANY_SELF);
+        unhappy_towns.RemoveValue(AITown.TOWN_RATING_NONE);
+        unhappy_towns.RemoveAboveValue(AITown.TOWN_RATING_VERY_POOR);
+        
+        if (unhappy_towns.Count() > 0)
+        {
+            Log.Info("Removing " + unhappy_towns.Count() + " towns from " +
+                     "consideration due to low local authority rating.",
+                     Log.LVL_SUB_DECISIONS);
+            to_towns.RemoveList(unhappy_towns);
         }
         
         // for each town already serviced, evaluate the best town to connect
