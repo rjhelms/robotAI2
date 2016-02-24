@@ -25,6 +25,7 @@ class robotAI2 extends AIController
     LastRouteExpansion = null;
     LastLineMaintenanceDate = null;
     OldVehicleGroup = null;
+    LastFailedTowns = null;
     
     constructor()
     {
@@ -33,6 +34,7 @@ class robotAI2 extends AIController
         ServicedTownDepots = AIList();
         UnservicedTowns = AIList();
         Lines = [];
+        LastFailedTowns = [];
     }
     
     function Initialize()
@@ -137,11 +139,15 @@ class robotAI2 extends AIController
             {
                 Log.Error("Failed to build road.", Log.LVL_INFO);
                 Money.MakeMaximumPayback();
+                LastFailedTowns.append(town1);
+                LastFailedTowns.append(town2);
                 return null;
             }
         } else {
             Log.Error("Failed to find path.", Log.LVL_INFO);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -169,6 +175,8 @@ class robotAI2 extends AIController
             }
             
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -182,6 +190,8 @@ class robotAI2 extends AIController
             AIRoad.RemoveRoadStation(town1_result);
             AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -202,6 +212,8 @@ class robotAI2 extends AIController
             AIRoad.RemoveRoadStation(town2_result);
             AIRoad.RemoveRoadDepot(depot);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -234,37 +246,56 @@ class robotAI2 extends AIController
     
     function EvaluateCandidateExpansionRoutes()
     {
-    	ServicedTowns.Sort(AIList.SORT_BY_ITEM, AIList.SORT_ASCENDING);
-        local this_town = ServicedTowns.Begin();
+        local from_towns = AIList();
+        local to_towns = AIList();
+        
+        from_towns.AddList(ServicedTowns);
+        from_towns.Sort(AIList.SORT_BY_ITEM, AIList.SORT_ASCENDING);
+        
+        to_towns.AddList(UnservicedTowns);
+        
+        for (local i = 0; i < LastFailedTowns.len(); i++)
+        {
+            from_towns.RemoveItem(LastFailedTowns[i]);
+            to_towns.RemoveItem(LastFailedTowns[i]);
+            Log.Info("Removing " + AITown.GetName(LastFailedTowns[i]) +
+                     "from consideration due to previous failure.", 
+                     Log.LVL_SUB_DECISIONS);
+        }
+        
+        // for each town already serviced, evaluate the best town to connect
+        local this_town = from_towns.Begin();
         local candidate_towns = AIList();
         do {
-            UnservicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+            to_towns.Valuate(Utilities.GetDeviationFromIdealDistance, 
                                     AITown.GetLocation(this_town), BestVehicle,
                                     100);
-            UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-            local closest_town = UnservicedTowns.Begin();
+            to_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
+            local closest_town = to_towns.Begin();
             Log.Info("Ideal town from " + AITown.GetName(this_town) + ": " +
                      AITown.GetName(closest_town), Log.LVL_DEBUG);
             candidate_towns.AddItem(closest_town, 
                                     Utilities.
                                         GetRandomizedPopulation(closest_town, 
                                                                 300)); 
-            this_town = ServicedTowns.Next();
-        } while (!ServicedTowns.IsEnd())
+            this_town = from_towns.Next();
+        } while (!from_towns.IsEnd())
         
+        // get biggest candidate town
         candidate_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
         
+        // and then get the best existing town to service the candidate
         // don't use randomization here, as candidate list is random enough
-        ServicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+        from_towns.Valuate(Utilities.GetDeviationFromIdealDistance, 
                               AITown.GetLocation(candidate_towns.Begin()), 
                               BestVehicle, 0);
-        ServicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
+        from_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
         
-        Log.Info("Next expansion: " + AITown.GetName(ServicedTowns.Begin()) + 
+        Log.Info("Next expansion: " + AITown.GetName(from_towns.Begin()) + 
                  " to " + AITown.GetName(candidate_towns.Begin()), 
                  Log.LVL_SUB_DECISIONS);
         
-        return [ServicedTowns.Begin(), candidate_towns.Begin()];
+        return [from_towns.Begin(), candidate_towns.Begin()];
     }
     
     function BuildNewLine()
@@ -294,18 +325,22 @@ class robotAI2 extends AIController
         
         if (roadBuilder.DoPathfinding())
         {
-           local road_builder_result = roadBuilder.ConnectTiles();
-           
-           // road building failed, abort
-           if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
-          {
-              Log.Error("Failed to build road.", Log.LVL_INFO);
-              Money.MakeMaximumPayback();
-              return null;
-           }
+            local road_builder_result = roadBuilder.ConnectTiles();
+            
+            // road building failed, abort
+            if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+            {
+                Log.Error("Failed to build road.", Log.LVL_INFO);
+                Money.MakeMaximumPayback();
+                LastFailedTowns.append(towns[0]);
+                LastFailedTowns.append(towns[1]);
+                return null;
+            }
         } else {
             Log.Error("Failed to find path.", Log.LVL_INFO);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -317,6 +352,8 @@ class robotAI2 extends AIController
         {
             Log.Error("Failed to build station", Log.LVL_INFO);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -359,6 +396,8 @@ class robotAI2 extends AIController
             // cleanup - remove constructed station and repay loan
             AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -374,6 +413,8 @@ class robotAI2 extends AIController
         {
             Log.Error("Failed to build vehicle.", Log.LVL_INFO);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -446,6 +487,8 @@ class robotAI2 extends AIController
                          Log.LVL_DEBUG);
                 Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
                          Log.LVL_DEBUG);
+                
+                LastFailedTowns = [];
             } else {
                 Log.Error("Failed to build new line, error: " + 
                           AIError.GetLastErrorString(), Log.LVL_INFO);
@@ -632,6 +675,7 @@ class robotAI2 extends AIController
                         Log.LVL_DEBUG);
                 Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
                         Log.LVL_DEBUG);
+                LastFailedTowns = [];
             } else {
                 Log.Error("Failed to build initial line, error: " + 
                         AIError.GetLastErrorString(), Log.LVL_INFO);
