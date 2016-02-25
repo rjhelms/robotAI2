@@ -12,7 +12,7 @@ class robotAI2 extends AIInfo {
     {
         AddSetting({name = "debug_signs",
                     description 
-                        = "Use signs for display of debug infomarion",
+                        = "Use signs for debug infomarion",
                     easy_value = 0,
                     medium_value = 0,
                     hard_value = 0,
@@ -21,7 +21,7 @@ class robotAI2 extends AIInfo {
                     
         AddSetting({name = "log_level",
                     description 
-                        = "Level of logging to use",
+                        = "Logging",
                     min_value = 0,
                     max_value = 3,
                     easy_value = 1,
@@ -42,8 +42,8 @@ class robotAI2 extends AIInfo {
                     min_value = 30,
                     max_value = 2000,
                     easy_value = 365,
-                    medium_value = 182,
-                    hard_value = 91,
+                    medium_value = 180,
+                    hard_value = 90,
                     custom_value = 182,
                     flags = AICONFIG_INGAME});
         
@@ -82,7 +82,7 @@ class robotAI2 extends AIInfo {
         
         AddSetting({name = "vehicles_per_stop",
                     description = 
-                        "Number of vehicles on a route for each bus stop",
+                        "Number of vehicles for each bus stop",
                     min_value = 1,
                     max_value = 100,
                     easy_value = 20,
