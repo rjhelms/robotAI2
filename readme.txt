@@ -43,8 +43,8 @@ Logging
   Default: Info only
 	
   How much robotAI2 writes to the AI/Game Script Debug log. 
-  "Sub-decisions" writes a bit more information about what's happening
-  under the hood, while "Debug" chatters a lot.
+  "Sub-decisions" writes a bit more information about what's 
+  happening under the hood, while "Debug" chatters a lot.
   
 Duration (in days) between vehicle list refresh
   Default: 365/180/90
