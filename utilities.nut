@@ -46,9 +46,6 @@ class Utilities
         local population_actual = AITown.GetPopulation(town_id);
         local population_randomized = population_actual - (random_range/2) +
                                       AIBase.RandRange(random_range);
-        Log.Info("Population of " + AITown.GetName(town_id) + ": " + 
-                 population_actual + " randomized to " + population_randomized,
-                 Log.LVL_DEBUG);
         return population_randomized;
     }
 
@@ -58,12 +55,21 @@ class Utilities
                                                                   tile_id);
         local distance_randomized = distance_actual - (random_range/2) + 
                                     AIBase.RandRange(random_range);
-        Log.Info("Distance " + AITown.GetName(town_id) + " to " + tile_id + 
-                 ": " + distance_actual + ", randomized to " + 
-                 distance_randomized, Log.LVL_DEBUG);
         return distance_randomized;
     }
-
+    
+    static function GetDeviationFromIdealDistance(town_id, tile_id, engine_id, 
+                                                  random_range)
+    {
+        local distance_randomized = Utilities.
+                                        GetRandomizedTownDistance(town_id, 
+                                                                  tile_id,
+                                                                  random_range);
+        local ideal_distance = AIEngine.GetMaxSpeed(engine_id) * 2.5;
+        local deviation = distance_randomized - ideal_distance;
+        return abs(distance_randomized - ideal_distance);
+    }
+    
     static function GetBestRoadVehicle(road_type, cargo, speed_weight, 
                                        capacity_weight)
     {

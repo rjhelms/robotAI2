@@ -6,6 +6,7 @@ Log         <- SuperLib.Log;
 OrderList   <- SuperLib.OrderList;
 Money       <- SuperLib.Money;
 Vehicle     <- SuperLib.Vehicle;
+Tile        <- SuperLib.Tile;
 
 require("utilities.nut");
 require("line.nut");
@@ -24,6 +25,7 @@ class robotAI2 extends AIController
     LastRouteExpansion = null;
     LastLineMaintenanceDate = null;
     OldVehicleGroup = null;
+    LastFailedTowns = null;
     
     constructor()
     {
@@ -32,6 +34,7 @@ class robotAI2 extends AIController
         ServicedTownDepots = AIList();
         UnservicedTowns = AIList();
         Lines = [];
+        LastFailedTowns = [];
     }
     
     function Initialize()
@@ -104,20 +107,51 @@ class robotAI2 extends AIController
         local town1_location = AITown.GetLocation(town1);
         UnservicedTowns.RemoveItem(town1);
         
-        // get the closest town
-        UnservicedTowns.Valuate(Utilities.GetRandomizedTownDistance, 
-                                town1_location, 100);
+        // get the best town to join with
+        UnservicedTowns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+                                town1_location, BestVehicle, 100);
         UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
         local town2 = UnservicedTowns.Begin();
-        Log.Info("Closest town is " + AITown.GetName(town2), 
+        local town2_location = AITown.GetLocation(town2);
+        Log.Info("Ideal town is " + AITown.GetName(town2), 
                  Log.LVL_SUB_DECISIONS);
         
         Log.Info("Building route from " + AITown.GetName(town1) + " to " 
                  + AITown.GetName(town2), Log.LVL_INFO);
         
-        // build road stations in the two towns
+        local town1_tile = Tile.FindClosestRoadTile(town1_location, 4);
+        local town2_tile = Tile.FindClosestRoadTile(town2_location, 4);
+        
+        // build a road between the two towns
         AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
-    
+        local roadBuilder = RoadBuilder();
+
+        roadBuilder.Init(town1_tile, town2_tile);
+        roadBuilder.connect_max_loops = 3500;
+        roadBuilder.SetLoanLimit(-1);
+        roadBuilder.SetEstimateMultiplier(2);
+        
+        if (roadBuilder.DoPathfinding())
+        {
+            local road_builder_result = roadBuilder.ConnectTiles();
+            
+            if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+            {
+                Log.Error("Failed to build road.", Log.LVL_INFO);
+                Money.MakeMaximumPayback();
+                LastFailedTowns.append(town1);
+                LastFailedTowns.append(town2);
+                return null;
+            }
+        } else {
+            Log.Error("Failed to find path.", Log.LVL_INFO);
+            Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
+            return null;
+        }
+        
+        // build road stations in the two towns
         local town1_result = Road.BuildStopInTown(town1, 
                                                   AIRoad.ROADVEHTYPE_BUS, 
                                                   PAXCargo, PAXCargo);
@@ -141,6 +175,8 @@ class robotAI2 extends AIController
             }
             
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -154,26 +190,8 @@ class robotAI2 extends AIController
             AIRoad.RemoveRoadStation(town1_result);
             AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
-            return null;
-        }
-        
-        // build a road between the two towns
-        local roadBuilder = RoadBuilder();
-
-        roadBuilder.Init(town1_result, town2_result);
-        roadBuilder.SetLoanLimit(-1);
-        //roadBuilder.DoPathfinding();
-        local road_builder_result = roadBuilder.ConnectTiles();
-        
-        if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
-        {
-            Log.Error("Failed to build road.", Log.LVL_INFO);
-            
-            // cleanup by removing stations and depot, and repaying loan
-            AIRoad.RemoveRoadStation(town1_result);
-            AIRoad.RemoveRoadStation(town2_result);
-            AIRoad.RemoveRoadDepot(depot);
-            Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -194,6 +212,8 @@ class robotAI2 extends AIController
             AIRoad.RemoveRoadStation(town2_result);
             AIRoad.RemoveRoadDepot(depot);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(town1);
+            LastFailedTowns.append(town2);
             return null;
         }
         
@@ -226,35 +246,71 @@ class robotAI2 extends AIController
     
     function EvaluateCandidateExpansionRoutes()
     {
-    	ServicedTowns.Sort(AIList.SORT_BY_ITEM, AIList.SORT_ASCENDING);
-        local this_town = ServicedTowns.Begin();
+        local from_towns = AIList();
+        local to_towns = AIList();
+        
+        from_towns.AddList(ServicedTowns);
+        from_towns.Sort(AIList.SORT_BY_ITEM, AIList.SORT_ASCENDING);
+        
+        to_towns.AddList(UnservicedTowns);
+        
+        for (local i = 0; i < LastFailedTowns.len(); i++)
+        {
+            from_towns.RemoveItem(LastFailedTowns[i]);
+            to_towns.RemoveItem(LastFailedTowns[i]);
+            Log.Info("Removing " + AITown.GetName(LastFailedTowns[i]) +
+                     " from consideration due to previous failure.", 
+                     Log.LVL_SUB_DECISIONS);
+        }
+        
+        // remove towns with local authority ratings too low to build stations
+        local unhappy_towns = AIList();
+        unhappy_towns.AddList(UnservicedTowns);
+        unhappy_towns.Valuate(AITown.GetRating, AICompany.COMPANY_SELF);
+        unhappy_towns.RemoveValue(AITown.TOWN_RATING_NONE);
+        unhappy_towns.RemoveAboveValue(AITown.TOWN_RATING_VERY_POOR);
+        
+        if (unhappy_towns.Count() > 0)
+        {
+            Log.Info("Removing " + unhappy_towns.Count() + " towns from " +
+                     "consideration due to low local authority rating.",
+                     Log.LVL_SUB_DECISIONS);
+            to_towns.RemoveList(unhappy_towns);
+        }
+        
+        // for each town already serviced, evaluate the best town to connect
+        local this_town = from_towns.Begin();
         local candidate_towns = AIList();
         do {
-            UnservicedTowns.Valuate(Utilities.GetRandomizedTownDistance, 
-                                    AITown.GetLocation(this_town), 100);
-            UnservicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
-            local closest_town = UnservicedTowns.Begin();
-            Log.Info("Closest town to " + AITown.GetName(this_town) + ": " +
+            to_towns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+                                    AITown.GetLocation(this_town), BestVehicle,
+                                    100);
+            to_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
+            local closest_town = to_towns.Begin();
+            Log.Info("Ideal town from " + AITown.GetName(this_town) + ": " +
                      AITown.GetName(closest_town), Log.LVL_DEBUG);
             candidate_towns.AddItem(closest_town, 
                                     Utilities.
                                         GetRandomizedPopulation(closest_town, 
                                                                 300)); 
-            this_town = ServicedTowns.Next();
-        } while (!ServicedTowns.IsEnd())
+            this_town = from_towns.Next();
+        } while (!from_towns.IsEnd())
         
+        // get biggest candidate town
         candidate_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_DESCENDING);
         
+        // and then get the best existing town to service the candidate
         // don't use randomization here, as candidate list is random enough
-        ServicedTowns.Valuate(AITown.GetDistanceManhattanToTile, 
-                              AITown.GetLocation(candidate_towns.Begin()));
-        ServicedTowns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
+        from_towns.Valuate(Utilities.GetDeviationFromIdealDistance, 
+                              AITown.GetLocation(candidate_towns.Begin()), 
+                              BestVehicle, 0);
+        from_towns.Sort(AIList.SORT_BY_VALUE, AIList.SORT_ASCENDING);
         
-        Log.Info("Next expansion: " + AITown.GetName(ServicedTowns.Begin()) + 
+        Log.Info("Next expansion: " + AITown.GetName(from_towns.Begin()) + 
                  " to " + AITown.GetName(candidate_towns.Begin()), 
                  Log.LVL_SUB_DECISIONS);
         
-        return [ServicedTowns.Begin(), candidate_towns.Begin()];
+        return [from_towns.Begin(), candidate_towns.Begin()];
     }
     
     function BuildNewLine()
@@ -268,6 +324,41 @@ class robotAI2 extends AIController
         
         AIRoad.SetCurrentRoadType(AIRoad.ROADTYPE_ROAD);
         
+        // find a road tile in town for pathfinding
+        local town2_tile = Tile.FindClosestRoadTile
+                            (AITown.GetLocation(towns[1]), 4);
+        
+        // build the road
+        local roadBuilder = RoadBuilder();
+        roadBuilder.Init(AIStation.GetLocation
+                         (ServicedTownStations.GetValue(towns[0])), 
+                         town2_tile);
+                          
+        roadBuilder.connect_max_loops = 3500;
+        roadBuilder.SetLoanLimit(-1);
+        roadBuilder.SetEstimateMultiplier(2.0);
+        
+        if (roadBuilder.DoPathfinding())
+        {
+            local road_builder_result = roadBuilder.ConnectTiles();
+            
+            // road building failed, abort
+            if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
+            {
+                Log.Error("Failed to build road.", Log.LVL_INFO);
+                Money.MakeMaximumPayback();
+                LastFailedTowns.append(towns[0]);
+                LastFailedTowns.append(towns[1]);
+                return null;
+            }
+        } else {
+            Log.Error("Failed to find path.", Log.LVL_INFO);
+            Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
+            return null;
+        }
+        
         // build a station in the new town
         local town2_result = Road.BuildStopInTown(towns[1], 
                              AIRoad.ROADVEHTYPE_BUS, PAXCargo, PAXCargo);
@@ -276,6 +367,8 @@ class robotAI2 extends AIController
         {
             Log.Error("Failed to build station", Log.LVL_INFO);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -318,30 +411,8 @@ class robotAI2 extends AIController
             // cleanup - remove constructed station and repay loan
             AIRoad.RemoveRoadStation(town2_result);
             Money.MakeMaximumPayback();
-            return null;
-        }
-        
-        // build the road
-        local roadBuilder = RoadBuilder();
-
-        roadBuilder.Init(AIStation.GetLocation
-                         (ServicedTownStations.GetValue(towns[0])), 
-                         town2_result);
-                          
-        roadBuilder.SetLoanLimit(-1);
-        local road_builder_result = roadBuilder.ConnectTiles();
-        
-        // road building failed, abort
-        if (road_builder_result != RoadBuilder.CONNECT_SUCCEEDED)
-        {
-            Log.Error("Failed to build road.", Log.LVL_INFO);
-            
-            // cleanup - remove constructed station and repay loan
-            AIRoad.RemoveRoadStation(town2_result);
-            Money.MakeMaximumPayback();
-            
-            // we can keep the depot, though
-            ServicedTownDepots.AddItem(depot_town, depot);
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -357,6 +428,8 @@ class robotAI2 extends AIController
         {
             Log.Error("Failed to build vehicle.", Log.LVL_INFO);
             Money.MakeMaximumPayback();
+            LastFailedTowns.append(towns[0]);
+            LastFailedTowns.append(towns[1]);
             return null;
         }
         
@@ -429,6 +502,8 @@ class robotAI2 extends AIController
                          Log.LVL_DEBUG);
                 Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
                          Log.LVL_DEBUG);
+                
+                LastFailedTowns = [];
             } else {
                 Log.Error("Failed to build new line, error: " + 
                           AIError.GetLastErrorString(), Log.LVL_INFO);
@@ -564,9 +639,8 @@ class robotAI2 extends AIController
               return;
             }
             
-            // Each line is only maintained once every two update intervals
             if (AIDate.GetCurrentDate() - (Lines[i].LastUpdateDate) > 
-                (GetSetting("line_maintenance_time") * 2))
+                (GetSetting("line_maintenance_time")))
             {
                 local line_rating = Lines[i].GetAverageStationRating();
                 local line_name = AIGroup.GetName(Lines[i].Group);
@@ -616,6 +690,7 @@ class robotAI2 extends AIController
                         Log.LVL_DEBUG);
                 Log.Info(UnservicedTowns.Count() + " unserviced towns.", 
                         Log.LVL_DEBUG);
+                LastFailedTowns = [];
             } else {
                 Log.Error("Failed to build initial line, error: " + 
                         AIError.GetLastErrorString(), Log.LVL_INFO);
